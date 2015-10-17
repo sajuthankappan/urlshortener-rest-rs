@@ -1,0 +1,16 @@
+[package]
+name = "urlshortener-web-rs"
+version = "0.1.0"
+authors = ["Saju Thankappan <sajuthankappan@gmail.com>"]
+
+[dependencies]
+iron = "*"
+router = "*"
+hyper = "*"
+unicase = "*"
+mount = "*"
+bodyparser = "*"
+serde = "*"
+serde_json = "*"
+serde_macros = "*"
+urlshortener = { path = "../urlshortener-rs" }
