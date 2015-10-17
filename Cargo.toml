@@ -1,5 +1,5 @@
 [package]
-name = "urlshortener-web-rs"
+name = "urlshortener_rest"
 version = "0.1.0"
 authors = ["Saju Thankappan <sajuthankappan@gmail.com>"]
 

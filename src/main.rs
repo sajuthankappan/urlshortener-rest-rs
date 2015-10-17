@@ -87,16 +87,24 @@ fn shorten_url(req: &mut Request) -> IronResult<Response> {
     let body = req.get::<bodyparser::Raw>().unwrap().unwrap();
     //println!("{:?}", body);
 
-    let mut url: models::Url = try_or_500!(serde_json::from_str(&body));
-    println!("{:?}", url);
+    let url: models::Url = try_or_500!(serde_json::from_str(&body));
+    let url_repository = UrlRepository::new();
+    let created = url_repository.add(url);
 
-    let created = UrlRepository::new().add(&mut url).unwrap();
-
-    //let serialized = serde_json::to_string(&createdUrl).unwrap();
-    println!("{}", created);
-    //let decoded: TestStruct = json::decode(json_body).unwrap();
-    //Ok(Response::with((status::Ok, serialized)))
-    Ok(Response::with((status::Ok, "created")))
+    match created {
+        Ok(v) =>{
+            let serialized = serde_json::to_string(&v).unwrap();
+            return respond_json(serialized);
+        },
+        Err(e) => {
+            if e == "Alias already exists." {
+                return Ok(Response::with((status::Conflict)))
+            }
+            else {
+                return Ok(Response::with((status::InternalServerError)))
+            }
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
