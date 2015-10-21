@@ -75,9 +75,17 @@ fn hello_world(_: &mut Request) -> IronResult<Response> {
 
 fn get_url(req: &mut Request) -> IronResult<Response> {
     let alias = req.extensions.get::<Router>().unwrap().find("alias").unwrap_or("");
-    let url = UrlRepository::new().find_one(alias.to_string()).unwrap();
-    let serialized = serde_json::to_string(&url).unwrap();
-    respond_json(serialized)
+    let find = UrlRepository::new().find_one(alias.to_string());
+    match find {
+        Some(url) => {
+            let serialized = serde_json::to_string(&url).unwrap();
+            respond_json(serialized)
+        },
+        None => {
+            Ok(Response::with(status::NotFound))
+        }
+    }
+
 }
 
 fn shorten_url(req: &mut Request) -> IronResult<Response> {
