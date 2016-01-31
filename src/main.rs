@@ -23,8 +23,9 @@ use iron::status;
 use mount::Mount;
 use router::Router;
 use unicase::UniCase;
-use urlshortener::dal::repository::UrlRepository;
+use urlshortener::errors;
 use urlshortener::models;
+use urlshortener::UrlManager;
 
 macro_rules! try_or_500 {
     ($expr:expr) => (match $expr {
@@ -61,10 +62,21 @@ fn respond_json(value: String) -> IronResult<Response> {
 
 fn redirect_to_alias(req: &mut Request) -> IronResult<Response> {
     let alias = req.extensions.get::<Router>().unwrap().find("alias").unwrap();
-    let long_url = UrlRepository::new().find_one(alias.to_string()).unwrap().long_url;
-    let urlstr: &str = &*long_url;
-    let url = Url::parse(urlstr).unwrap();
-    Ok(Response::with((status::MovedPermanently, Redirect(url.clone()))))
+    let long_url = UrlManager::new().find_one(alias.to_string()).unwrap().long_url;
+    let url_str: &str = &*long_url;
+    let url_result = Url::parse(url_str);
+    if let Ok(url) = url_result
+    {
+        Ok(Response::with((status::MovedPermanently, Redirect(url.clone()))))
+    }
+    else
+    {
+        // Try to handle if long url do not start with http / https
+        let new_long_url = "http://".to_string() + &long_url;
+        let new_long_url_str: &str = &*new_long_url;
+        let new_url = Url::parse(new_long_url_str).unwrap();
+        Ok(Response::with((status::MovedPermanently, Redirect(new_url.clone()))))
+    }
 }
 
 fn hello_world(_: &mut Request) -> IronResult<Response> {
@@ -75,7 +87,7 @@ fn hello_world(_: &mut Request) -> IronResult<Response> {
 
 fn get_url(req: &mut Request) -> IronResult<Response> {
     let alias = req.extensions.get::<Router>().unwrap().find("alias").unwrap_or("");
-    let find = UrlRepository::new().find_one(alias.to_string());
+    let find = UrlManager::new().find_one(alias.to_string());
     match find {
         Some(url) => {
             let serialized = serde_json::to_string(&url).unwrap();
@@ -96,8 +108,8 @@ fn shorten_url(req: &mut Request) -> IronResult<Response> {
     //println!("{:?}", body);
 
     let url: models::Url = try_or_500!(serde_json::from_str(&body));
-    let url_repository = UrlRepository::new();
-    let created = url_repository.add(url);
+    let url_manager = UrlManager::new();
+    let created = url_manager.add(url);
 
     match created {
         Ok(v) =>{
@@ -105,11 +117,13 @@ fn shorten_url(req: &mut Request) -> IronResult<Response> {
             return respond_json(serialized);
         },
         Err(e) => {
-            if e == "Alias already exists." {
-                return Ok(Response::with((status::Conflict)))
-            }
-            else {
-                return Ok(Response::with((status::InternalServerError)))
+            match e {
+                errors::UrlError::AliasAlreadyExists => {
+                    return Ok(Response::with((status::Conflict)))
+                },
+                errors::UrlError::OtherError => {
+                    return Ok(Response::with((status::InternalServerError)))
+                }
             }
         }
     }
