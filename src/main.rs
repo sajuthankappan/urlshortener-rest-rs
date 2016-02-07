@@ -52,7 +52,7 @@ fn main() {
 
     let mut chain = Chain::new(mount);
     chain.link_after(CORS);
-    Iron::new(chain).http("localhost:3000").unwrap();
+    Iron::new(chain).http("0.0.0.0:3000").unwrap();
 }
 
 fn respond_json(value: String) -> IronResult<Response> {
