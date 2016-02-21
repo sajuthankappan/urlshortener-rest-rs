@@ -1,6 +1,6 @@
 [package]
 name = "urlshortener_rest"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Saju Thankappan <sajuthankappan@gmail.com>"]
 description = "Urlshortener rest"
 license = "MIT OR Apache-2.0"

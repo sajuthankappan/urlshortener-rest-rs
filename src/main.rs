@@ -39,10 +39,15 @@ macro_rules! try_or_500 {
 
 fn main() {
     let mut router = Router::new();
+    router.get("/", redirect_to_home);
+    router.get("/ping", pong);
     router.get("/:alias", redirect_to_alias);
 
     let mut api_router = Router::new();
-    api_router.get("/url", hello_world);
+    api_router.get("/", pong);
+    api_router.get("/ping", pong);
+    api_router.get("/url", pong);
+    api_router.get("/url/ping", pong);
     api_router.get("/url/:alias", get_url);
     api_router.post("/url", shorten_url);
 
@@ -52,12 +57,19 @@ fn main() {
 
     let mut chain = Chain::new(mount);
     chain.link_after(CORS);
+    println!("Urlshortener rest services running at http://localhost:3000");
     Iron::new(chain).http("0.0.0.0:3000").unwrap();
 }
 
 fn respond_json(value: String) -> IronResult<Response> {
     let content_type = "application/json".parse::<Mime>().unwrap();
     Ok(Response::with((content_type, iron::status::Ok, value)))
+}
+
+fn redirect_to_home(_req: &mut Request) -> IronResult<Response> {
+    let homepage_url_str = "http://tsaju.in/urlshortener";
+    let homepage_url = Url::parse(homepage_url_str).unwrap();
+    Ok(Response::with((status::MovedPermanently, Redirect(homepage_url.clone()))))
 }
 
 fn redirect_to_alias(req: &mut Request) -> IronResult<Response> {
@@ -79,15 +91,16 @@ fn redirect_to_alias(req: &mut Request) -> IronResult<Response> {
     }
 }
 
-fn hello_world(_: &mut Request) -> IronResult<Response> {
-    let point = Point { x: 1, y: Some("saju".to_string()) };
-    let serialized = serde_json::to_string(&point).unwrap();
+fn pong(_: &mut Request) -> IronResult<Response> {
+    let pong = Pong { message: Some("pong".to_string()) };
+    let serialized = serde_json::to_string(&pong).unwrap();
     respond_json(serialized)
 }
 
 fn get_url(req: &mut Request) -> IronResult<Response> {
     let alias = req.extensions.get::<Router>().unwrap().find("alias").unwrap_or("");
     let find = UrlManager::new().find_one(alias.to_string());
+    
     match find {
         Some(url) => {
             let serialized = serde_json::to_string(&url).unwrap();
@@ -135,6 +148,12 @@ struct Point {
 //    #[serde(rename="xx")]
     y: Option<String>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+struct Pong {
+    message: Option<String>,
+}
+
 
 struct CORS;
 
